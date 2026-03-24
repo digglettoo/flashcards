@@ -8,7 +8,15 @@
 <meta name="apple-mobile-web-app-title" content="FlashDeck">
 <meta name="theme-color" content="#0a0a0f">
 <meta name="description" content="High-end flashcard PWA for focused learning">
+<meta name="mobile-web-app-capable" content="yes">
 <title>FlashDeck</title>
+
+<!-- PWA Manifest injected inline via JS below (no extra file needed) -->
+<link id="manifest-placeholder" rel="manifest">
+
+<!-- Apple Touch Icons (inline SVG data URIs — no extra files) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230a0a0f'/%3E%3Ctext x='256' y='340' font-size='280' text-anchor='middle' font-family='serif' fill='%23c8f064'%3EF%3C/text%3E%3C/svg%3E">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 
@@ -88,6 +96,76 @@
     border-radius: 20px;
     letter-spacing: 0.5px;
   }
+
+  /* ─── ONLINE INDICATOR ─── */
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .net-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.8px;
+    padding: 4px 10px 4px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    transition: all 0.4s ease;
+    cursor: default;
+    position: relative;
+  }
+
+  .net-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background 0.4s ease, box-shadow 0.4s ease;
+  }
+
+  .net-badge.online { border-color: rgba(100,220,120,0.25); color: #6ddc88; }
+  .net-badge.online .net-dot {
+    background: #4ade80;
+    box-shadow: 0 0 6px rgba(74,222,128,0.7);
+    animation: pulse-net 2.5s ease infinite;
+  }
+  .net-badge.offline { border-color: rgba(255,107,107,0.25); color: #ff8080; }
+  .net-badge.offline .net-dot {
+    background: #ff6b6b;
+    box-shadow: 0 0 6px rgba(255,107,107,0.5);
+  }
+  .net-badge.cached { border-color: rgba(200,240,100,0.2); color: var(--accent); }
+  .net-badge.cached .net-dot {
+    background: var(--accent);
+    box-shadow: 0 0 6px rgba(200,240,100,0.5);
+    animation: pulse-net 2s ease infinite;
+  }
+
+  @keyframes pulse-net {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  /* ─── OFFLINE BANNER ─── */
+  .offline-banner {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px 16px;
+    background: rgba(255,107,107,0.07);
+    border-bottom: 1px solid rgba(255,107,107,0.12);
+    font-size: 11px;
+    color: #ff8888;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.4px;
+  }
+  .offline-banner.show { display: flex; }
 
   /* ─── SEARCH ─── */
   .search-wrap {
@@ -705,7 +783,19 @@
 <!-- HEADER -->
 <div class="header">
   <div class="logo">FlashDeck</div>
-  <div class="deck-count" id="deckCount">0 CARDS</div>
+  <div class="header-right">
+    <div class="net-badge online" id="netBadge" title="Network status">
+      <div class="net-dot" id="netDot"></div>
+      <span id="netLabel">ONLINE</span>
+    </div>
+    <div class="deck-count" id="deckCount">0 CARDS</div>
+  </div>
+</div>
+
+<!-- OFFLINE BANNER -->
+<div class="offline-banner" id="offlineBanner">
+  <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+  You're offline — using cached version. Your cards are safe.
 </div>
 
 <!-- STUDY PANEL -->
@@ -1203,16 +1293,83 @@ document.addEventListener('keydown', e => {
   if (e.key === ' ') { e.preventDefault(); flipCard(); }
 });
 
-// ─── PWA SERVICE WORKER (inline) ───
+// ─── MANIFEST (injected inline — no extra file) ───
+(function() {
+  const manifest = {
+    name: 'FlashDeck',
+    short_name: 'FlashDeck',
+    description: 'High-end offline flashcard app',
+    start_url: './',
+    scope: './',
+    display: 'standalone',
+    orientation: 'portrait',
+    background_color: '#0a0a0f',
+    theme_color: '#0a0a0f',
+    categories: ['education', 'productivity'],
+    icons: [
+      {
+        src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230a0a0f'/%3E%3Ctext x='256' y='340' font-size='280' text-anchor='middle' font-family='serif' fill='%23c8f064'%3EF%3C/text%3E%3C/svg%3E",
+        sizes: '512x512',
+        type: 'image/svg+xml',
+        purpose: 'any maskable'
+      }
+    ]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  document.getElementById('manifest-placeholder').setAttribute('href', url);
+})();
+
+// ─── NETWORK STATUS ───
+function updateNetStatus() {
+  const badge = document.getElementById('netBadge');
+  const label = document.getElementById('netLabel');
+  const banner = document.getElementById('offlineBanner');
+  const isOnline = navigator.onLine;
+
+  if (isOnline) {
+    // Check if we're actually serving from SW cache
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      badge.className = 'net-badge cached';
+      label.textContent = 'CACHED';
+    } else {
+      badge.className = 'net-badge online';
+      label.textContent = 'ONLINE';
+    }
+    banner.classList.remove('show');
+  } else {
+    badge.className = 'net-badge offline';
+    label.textContent = 'OFFLINE';
+    banner.classList.add('show');
+  }
+}
+
+window.addEventListener('online', () => { updateNetStatus(); showToast('Back online ✓', 'success'); });
+window.addEventListener('offline', () => { updateNetStatus(); showToast('Gone offline — cached app active'); });
+
+// ─── SERVICE WORKER ───
+// NOTE FOR GITHUB PAGES:
+// Save the sw.js block below as a SEPARATE file called "sw.js"
+// in the same folder as your index.html, then deploy both.
+// The SW must be on the same origin — blob: URLs don't work for navigation control.
 if ('serviceWorker' in navigator) {
-  const sw = `
-    const CACHE = 'flashdeck-v1';
-    const ASSETS = [self.location.href];
-    self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS))));
-    self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
-  `;
-  const blob = new Blob([sw], { type: 'application/javascript' });
-  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+  navigator.serviceWorker.register('./sw.js')
+    .then(reg => {
+      console.log('[FlashDeck] SW registered, scope:', reg.scope);
+      // When a new SW takes over, refresh indicator
+      reg.addEventListener('statechange', updateNetStatus);
+      updateNetStatus();
+    })
+    .catch(err => {
+      // SW not found (local dev without sw.js) — still works, just no offline cache
+      console.warn('[FlashDeck] SW not registered:', err.message);
+      updateNetStatus();
+    });
+
+  // When SW controller changes (first install), update indicator
+  navigator.serviceWorker.addEventListener('controllerchange', updateNetStatus);
+} else {
+  updateNetStatus();
 }
 
 // ─── START ───

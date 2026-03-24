@@ -20,7 +20,9 @@
   --cyan:        #00e5ff;
   --cyan-dim:    rgba(0,229,255,0.12);
   --green:       #39ff87;
+  --green-dim:   rgba(57,255,135,0.1);
   --amber:       #ffb830;
+  --amber-dim:   rgba(255,184,48,0.1);
   --red:         #ff4d6a;
   --red-dim:     rgba(255,77,106,0.1);
   --violet:      #a78bfa;
@@ -39,22 +41,14 @@
 /* ═══════════════════════════ RESET & CROSS-PLATFORM FIXES */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
 
-html {
-  width: 100%; height: 100%;
-  background: var(--bg);
-}
+html { width: 100%; height: 100%; background: var(--bg); }
 
 body {
   position: fixed; /* iOS bounce fix */
   top: 0; left: 0; width: 100%; height: 100%;
-  margin: 0;
-  font-family: var(--fb);
-  color: var(--text);
-  display: flex;
-  flex-direction: column;
-  padding-top: var(--safe-t);
-  overscroll-behavior: none;
-  background: var(--bg);
+  margin: 0; font-family: var(--fb); color: var(--text);
+  display: flex; flex-direction: column; padding-top: var(--safe-t);
+  overscroll-behavior: none; background: var(--bg);
 }
 
 /* ═══════════════════════════ HEADER */
@@ -69,18 +63,16 @@ body {
 .logo { font-family: var(--fd); font-weight: 800; font-size: 21px; color: var(--cyan); }
 .header-meta { display: flex; align-items: center; gap: 8px; }
 .hbadge { font-family: var(--fm); font-size: 10px; padding: 4px 9px; border-radius: 20px; background: var(--glass); border: 1px solid var(--border); color: var(--text-2); }
+.hbadge.due { border-color: rgba(0,229,255,.3); color: var(--cyan); }
 
 /* ═══════════════════════════ PANELS */
 .panels { flex: 1; position: relative; overflow: hidden; }
 
 .panel {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column;
-  opacity: 0; pointer-events: none;
-  transform: translateY(8px);
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  opacity: 0; pointer-events: none; transform: translateY(8px);
   transition: opacity .2s ease, transform .2s ease;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
   padding-bottom: calc(var(--nav-h) + var(--safe-b) + 80px);
 }
 .panel.active { opacity: 1; pointer-events: all; transform: translateY(0); }
@@ -101,6 +93,21 @@ body {
 .card-word { font-family: var(--fd); font-weight: 700; font-size: 32px; margin-bottom: 10px; }
 .card-meaning { font-size: 18px; font-weight: 500; margin-bottom: 10px; }
 .card-example { font-family: var(--fm); font-size: 14px; color: var(--text-2); font-style: italic; }
+
+/* ── SRS info ── */
+.srs-strip { width: 100%; max-width: 480px; display: flex; justify-content: space-between; margin-top: 5px; }
+.srs-info { font-family: var(--fm); font-size: 10px; color: var(--text-3); }
+.srs-info span { color: var(--text-2); }
+
+/* ── SRS Buttons ── */
+.srs-btns { width: 100%; max-width: 480px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 15px; }
+.srs-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 60px; border: 1px solid var(--border); border-radius: 14px; background: var(--glass); cursor: pointer; font-family: var(--fd); font-weight: 700; font-size: 14px; transition: transform 0.1s;}
+.srs-btn:active { transform: scale(0.95); }
+.srs-int { font-family: var(--fm); font-size: 9px; font-weight: 400; opacity: .5; }
+.srs-btn.again { color:var(--red); border-color:rgba(255,77,106,.22); background:var(--red-dim); }
+.srs-btn.hard  { color:var(--amber); border-color:rgba(255,184,48,.22); background:var(--amber-dim); }
+.srs-btn.good  { color:var(--cyan); border-color:rgba(0,229,255,.22); background:var(--cyan-dim); }
+.srs-btn.easy  { color:var(--green); border-color:rgba(57,255,135,.22); background:var(--green-dim); }
 
 /* ═══════════════════════════ FORMS & BUTTONS */
 .btn {
@@ -134,7 +141,7 @@ textarea { min-height: 120px; }
   padding: 20px 16px; background: rgba(255,255,255,0.02);
   border: 1.5px dashed var(--border2); border-radius: 14px; text-align: center;
 }
-.file-drop-icon { color: var(--text-3); }
+.file-drop-icon { color: var(--text-3); font-size: 24px;}
 
 /* ═══════════════════════════ DECK LIST */
 .cli { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
@@ -142,12 +149,14 @@ textarea { min-height: 120px; }
 .cli-word { font-family: var(--fd); font-weight: 600; font-size: 15px; }
 .cli-mean { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cli-del { background: var(--red-dim); border: none; color: var(--red); padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: bold;}
+.cli-due { font-family: var(--fm); font-size: 9px; padding: 3px 7px; border-radius: 8px; border: 1px solid var(--border); color: var(--text-3); }
+.cli-due.now { color: var(--cyan); border-color: rgba(0,229,255,.25); background: var(--cyan-dim); }
 
 /* ═══════════════════════════ BOTTOM NAV */
 .bottom-nav {
   position: absolute; bottom: 0; left: 0; width: 100%; z-index: 50;
   display: flex; background: rgba(8,8,16,0.95); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-  border-bottom: env(safe-area-inset-bottom, 0px) solid transparent; /* iPhone bottom bar fix */
+  border-bottom: env(safe-area-inset-bottom, 0px) solid transparent; 
   border-top: 1px solid var(--border); 
 }
 .nav-btn {
@@ -171,6 +180,7 @@ textarea { min-height: 120px; }
 <header class="header">
   <div class="logo">FlashDeck</div>
   <div class="header-meta">
+    <div class="hbadge" id="badgeDue">0 DUE</div>
     <div class="hbadge" id="badgeTotal">0 CARDS</div>
   </div>
 </header>
@@ -220,7 +230,6 @@ textarea { min-height: 120px; }
         <button class="btn btn-full" onclick="exportJSON()">Export JSON Backup</button>
         <button class="btn btn-full" onclick="document.getElementById('jsonFile').click()">Import JSON Backup</button>
         <input type="file" id="jsonFile" accept="*/*" style="display:none" onchange="importJSON(event)">
-        
         <button class="btn btn-danger btn-full" onclick="clearAll()" style="margin-top: 10px;">Delete All Cards</button>
       </div>
 
@@ -246,15 +255,59 @@ let queue = [];
 let qIdx = 0;
 let flipped = false;
 
+/* ─────────────────── ANKI LOGIC (SM-2) ─────────────────── */
+const SRS = {
+  next(card, rating) {
+    let ef = card.easeFactor || 2.5;
+    let iv = card.interval || 0;
+    const now = Date.now();
+    
+    if (rating === 0) { // Again
+      return { interval: 0, easeFactor: Math.max(1.3, ef - 0.2), nextReview: now + 60000 }; 
+    }
+    if (rating === 1) { // Hard
+      iv = Math.max(1, Math.round(iv * 1.2));
+      return { interval: iv, easeFactor: Math.max(1.3, ef - 0.15), nextReview: now + (iv * 86400000) };
+    }
+    if (rating === 2) { // Good
+      iv = iv < 1 ? 1 : iv < 4 ? 4 : Math.round(iv * ef);
+      return { interval: iv, easeFactor: ef, nextReview: now + (iv * 86400000) };
+    }
+    // Easy
+    iv = iv < 1 ? 1 : iv < 7 ? 7 : Math.round(iv * ef * 1.3);
+    ef = Math.min(4.0, ef + 0.15);
+    return { interval: iv, easeFactor: ef, nextReview: now + (iv * 86400000) };
+  },
+  isDue(c) { return (c.nextReview || 0) <= Date.now(); },
+  dueCount(d) { return d.filter(c => SRS.isDue(c)).length; },
+  label(c) {
+    const ms = (c.nextReview || 0) - Date.now();
+    if (ms <= 0) return 'NOW';
+    const h = ms / 3600000;
+    if (h < 24) return Math.round(h) + 'h';
+    return Math.round(h / 24) + 'd';
+  }
+};
+
+/* ─────────────────── STORAGE ─────────────────── */
 function save() { localStorage.setItem('flashdeck_final', JSON.stringify(deck)); }
 function load() { 
   try { 
     deck = JSON.parse(localStorage.getItem('flashdeck_final') || '[]'); 
     if(!Array.isArray(deck)) deck = [];
   } catch { deck = []; }
-  deck.forEach(c => { if(!c.id) c.id = Date.now() + Math.random(); });
+  
+  // Ensure all cards have SRS fields
+  deck = deck.map(c => ({
+    id: c.id || Date.now() + Math.random(),
+    word: c.word, meaning: c.meaning, example: c.example || '',
+    interval: c.interval || 0,
+    easeFactor: c.easeFactor || 2.5,
+    nextReview: c.nextReview || 0
+  }));
 }
 
+/* ─────────────────── PARSER ─────────────────── */
 function parseText(text) {
   let added = 0, dupes = 0;
   const existing = new Set(deck.map(c => c.word.toLowerCase()));
@@ -265,7 +318,11 @@ function parseText(text) {
     if(pts.length >= 2 && pts[0].trim() && pts[1].trim()) {
       let w = pts[0].trim();
       if (existing.has(w.toLowerCase())) { dupes++; return; }
-      deck.push({ id: Date.now()+Math.random(), word: w, meaning: pts[1].trim(), example: (pts[2]||'').trim() });
+      deck.push({ 
+        id: Date.now()+Math.random(), 
+        word: w, meaning: pts[1].trim(), example: (pts[2]||'').trim(),
+        interval: 0, easeFactor: 2.5, nextReview: 0 
+      });
       existing.add(w.toLowerCase());
       added++;
     }
@@ -273,23 +330,45 @@ function parseText(text) {
   return { added, dupes };
 }
 
+/* ─────────────────── QUEUE (ONLY DUE CARDS) ─────────────────── */
 function buildQueue() {
-  queue = [...deck];
+  queue = deck.filter(c => SRS.isDue(c));
   queue.sort(() => Math.random() - 0.5);
   qIdx = 0; flipped = false;
+  updateBadges();
 }
 
+/* ─────────────────── STUDY UI ─────────────────── */
 function renderStudy() {
   let el = document.getElementById('studyInner');
-  if(!queue.length) {
-    el.innerHTML = `<h3 style="margin-top: 50px; color: var(--text-2);">No cards found. Go to Add!</h3>`;
+  
+  if (!deck.length) {
+    el.innerHTML = `
+      <h2 style="margin-top:40px; color: var(--text-2);">Deck is Empty</h2>
+      <p style="color: var(--text-3); font-size: 14px; text-align: center;">Go to the Add tab to paste your words!</p>
+    `;
     return;
   }
+  
+  if (!queue.length) {
+    el.innerHTML = `
+      <div style="font-size: 40px; margin-top: 40px;">🎉</div>
+      <h2 style="margin-top:10px; color: var(--cyan);">Caught Up!</h2>
+      <p style="color: var(--text-3); font-size: 14px; text-align: center;">You have reviewed all your due cards for now.</p>
+    `;
+    return;
+  }
+
   let c = queue[qIdx];
+  let lbl = c.interval ? 'Review' : 'New';
+  
   el.innerHTML = `
     <div class="scene" onclick="flipped=!flipped; renderStudy();">
       <div class="card3d ${flipped?'flipped':''}">
-        <div class="card-face card-front"><div class="card-word">${c.word}</div><p style="font-size:12px; opacity:0.5; color: var(--cyan);">Tap to flip</p></div>
+        <div class="card-face card-front">
+          <div class="card-word">${c.word}</div>
+          <p style="font-size:12px; opacity:0.5; color: var(--cyan);">Tap to reveal</p>
+        </div>
         <div class="card-face card-back">
           <div style="font-size: 10px; color: var(--violet); text-transform: uppercase; margin-bottom: 10px;">Meaning</div>
           <div class="card-meaning">${c.meaning}</div>
@@ -297,30 +376,80 @@ function renderStudy() {
         </div>
       </div>
     </div>
-    <div style="display:flex; gap:10px; width:100%; max-width:480px; margin-top:20px;">
-      <button class="btn" style="flex:1" onclick="qIdx=(qIdx-1+queue.length)%queue.length; flipped=false; renderStudy();">Prev</button>
-      <button class="btn btn-primary" style="flex:2" onclick="qIdx=(qIdx+1)%queue.length; flipped=false; renderStudy();">Next Card</button>
+    
+    <div class="srs-strip">
+      <div class="srs-info">${lbl} · Card ${qIdx+1}/${queue.length}</div>
+      <div class="srs-info">EF <span>${c.easeFactor.toFixed(1)}</span></div>
     </div>
+
+    ${flipped ? `
+    <div class="srs-btns">
+      <button class="srs-btn again" onclick="rateCard(0)">Again<span class="srs-int">< 1m</span></button>
+      <button class="srs-btn hard"  onclick="rateCard(1)">Hard<span class="srs-int">~2d</span></button>
+      <button class="srs-btn good"  onclick="rateCard(2)">Good<span class="srs-int">~4d</span></button>
+      <button class="srs-btn easy"  onclick="rateCard(3)">Easy<span class="srs-int">~7d</span></button>
+    </div>` : `
+    <div style="display:flex; width:100%; max-width:480px; margin-top:15px;">
+      <button class="btn btn-primary btn-full" onclick="flipped=true; renderStudy();">Show Answer</button>
+    </div>`}
   `;
 }
 
+function rateCard(rating) {
+  if (!queue.length) return;
+  const card = queue[qIdx];
+  const update = SRS.next(card, rating);
+  
+  // Find card in main deck and update it
+  const idx = deck.findIndex(c => c.id === card.id);
+  if (idx > -1) Object.assign(deck[idx], update);
+  save();
+
+  if (rating === 0) {
+    // Again: throw it to the back of the current queue
+    queue.push(queue.splice(qIdx, 1)[0]);
+  } else {
+    // Move to next card
+    qIdx++;
+    if (qIdx >= queue.length) buildQueue();
+  }
+  
+  flipped = false;
+  updateBadges();
+  renderStudy();
+}
+
+/* ─────────────────── DECK UI ─────────────────── */
 function renderDeck() {
   let el = document.getElementById('cardList');
   if (!deck.length) { el.innerHTML = `<p style="text-align:center; color: var(--text-3); font-size: 14px; margin-top: 20px;">Deck is empty.</p>`; } 
   else {
-    el.innerHTML = deck.map(c => `
+    el.innerHTML = deck.map(c => {
+      let dueStr = SRS.isDue(c) ? 'NOW' : SRS.label(c);
+      let dueCls = SRS.isDue(c) ? 'now' : '';
+      return `
       <div class="cli">
         <div class="cli-body">
           <div class="cli-word">${c.word}</div>
           <div class="cli-mean">${c.meaning}</div>
         </div>
+        <div class="cli-due ${dueCls}">${dueStr}</div>
         <button class="cli-del" onclick="deleteCard(${c.id})">Del</button>
       </div>
-    `).join('');
+    `}).join('');
   }
+  updateBadges();
+}
+
+function updateBadges() {
+  let due = SRS.dueCount(deck);
+  let bd = document.getElementById('badgeDue');
+  bd.innerText = due + " DUE";
+  bd.className = 'hbadge' + (due > 0 ? ' due' : '');
   document.getElementById('badgeTotal').innerText = deck.length + " CARDS";
 }
 
+/* ─────────────────── ACTIONS ─────────────────── */
 function deleteCard(id) {
   deck = deck.filter(c => c.id !== id);
   save(); buildQueue(); renderDeck(); renderStudy();
@@ -333,7 +462,7 @@ function addSingle() {
   if(!w || !m) return toast('Word and Meaning required');
   if(deck.some(c => c.word.toLowerCase() === w.toLowerCase())) return toast('Card already exists!');
   
-  deck.push({ id: Date.now(), word: w, meaning: m, example: e });
+  deck.push({ id: Date.now(), word: w, meaning: m, example: e, interval: 0, easeFactor: 2.5, nextReview: 0 });
   save(); buildQueue(); renderDeck(); renderStudy();
   document.getElementById('inWord').value = '';
   document.getElementById('inMeaning').value = '';
@@ -351,7 +480,6 @@ function bulkImport() {
   switchTab('Deck');
 }
 
-// THE SAFARI FILE UPLOAD FIX
 function loadFromFile(e) {
   let file = e.target.files[0]; if(!file) return;
   let reader = new FileReader();
@@ -362,7 +490,7 @@ function loadFromFile(e) {
     switchTab('Deck');
   };
   reader.readAsText(file);
-  e.target.value = ''; // reset so you can pick the same file again if needed
+  e.target.value = '';
 }
 
 function exportJSON() {
@@ -374,7 +502,6 @@ function exportJSON() {
   a.click();
 }
 
-// THE SAFARI JSON FIX
 function importJSON(e) {
   let file = e.target.files[0]; if(!file) return;
   let reader = new FileReader();
@@ -388,7 +515,10 @@ function importJSON(e) {
       
       data.forEach(c => {
         if(c.word && c.meaning && !existing.has(c.word.toLowerCase())) {
-          deck.push({ id: Date.now()+Math.random(), word: c.word, meaning: c.meaning, example: c.example||'' });
+          deck.push({ 
+            id: Date.now()+Math.random(), word: c.word, meaning: c.meaning, example: c.example||'',
+            interval: c.interval || 0, easeFactor: c.easeFactor || 2.5, nextReview: c.nextReview || 0
+          });
           existing.add(c.word.toLowerCase());
           added++;
         }
@@ -399,7 +529,7 @@ function importJSON(e) {
     } catch (err) { toast('Invalid JSON File'); }
   };
   reader.readAsText(file);
-  e.target.value = ''; // reset
+  e.target.value = '';
 }
 
 function clearAll() {

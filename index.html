@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FlashDeck">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="description" content="High-end flashcard PWA for focused learning">
+<title>FlashDeck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #18181f;
+    --surface3: #22222c;
+    --border: rgba(255,255,255,0.07);
+    --border-bright: rgba(255,255,255,0.15);
+    --accent: #c8f064;
+    --accent2: #7b61ff;
+    --accent3: #ff6b6b;
+    --text: #f0f0f5;
+    --text-dim: #8888a0;
+    --text-dimmer: #444455;
+    --card-h: clamp(260px, 52vw, 360px);
+    --radius: 20px;
+    --tab-h: 80px;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-t: env(safe-area-inset-top, 0px);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    padding-top: var(--safe-t);
+  }
+
+  /* ─── HEADER ─── */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px 12px;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent) 0%, #a8e040 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .deck-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ─── SEARCH ─── */
+  .search-wrap {
+    padding: 12px 16px 6px;
+  }
+  .search-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0 14px;
+    transition: border-color 0.2s;
+  }
+  .search-inner:focus-within { border-color: var(--border-bright); }
+  .search-inner svg { flex-shrink: 0; opacity: 0.4; }
+  #searchInput {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    padding: 12px 0;
+    caret-color: var(--accent);
+  }
+  #searchInput::placeholder { color: var(--text-dimmer); }
+  .search-clear {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    line-height: 1;
+  }
+  .search-clear.visible { opacity: 1; }
+
+  /* ─── MAIN ─── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 16px;
+    overflow-y: auto;
+    gap: 16px;
+    padding-bottom: calc(var(--tab-h) + var(--safe-b) + 16px);
+  }
+
+  /* ─── CARD SCENE ─── */
+  .scene {
+    width: 100%;
+    max-width: 420px;
+    height: var(--card-h);
+    perspective: 1200px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .card {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: var(--radius);
+  }
+  .card.flipped { transform: rotateY(180deg); }
+
+  .card-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 30px 28px;
+    text-align: center;
+    overflow: hidden;
+  }
+
+  .card-front {
+    background: linear-gradient(145deg, #16161e 0%, #1a1a24 50%, #141420 100%);
+    border: 1px solid var(--border-bright);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.04) inset;
+  }
+
+  .card-front::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(200,240,100,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .card-front::after {
+    content: 'TAP TO FLIP';
+    position: absolute;
+    bottom: 18px;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--text-dimmer);
+  }
+
+  .card-back {
+    background: linear-gradient(145deg, #141420 0%, #181825 50%, #111118 100%);
+    border: 1px solid rgba(123,97,255,0.25);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(123,97,255,0.05) inset;
+    transform: rotateY(180deg);
+  }
+
+  .card-back::before {
+    content: '';
+    position: absolute;
+    bottom: -60px; left: -60px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(123,97,255,0.1) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .card-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    opacity: 0.7;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+  .card-back .card-tag { color: #a090ff; }
+
+  .card-word {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(28px, 7vw, 42px);
+    line-height: 1.1;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+
+  .card-meaning {
+    font-size: clamp(16px, 4vw, 20px);
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.4;
+    margin-bottom: 16px;
+  }
+
+  .card-example {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: clamp(13px, 3.2vw, 16px);
+    color: var(--text-dim);
+    line-height: 1.6;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 10px;
+    border-left: 2px solid rgba(123,97,255,0.4);
+    text-align: left;
+    width: 100%;
+  }
+
+  /* ─── PROGRESS ─── */
+  .progress-wrap {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .progress-bar {
+    height: 3px;
+    background: var(--surface3);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #a8e040);
+    border-radius: 10px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ─── CONTROLS ─── */
+  .controls {
+    width: 100%;
+    max-width: 420px;
+    display: grid;
+    grid-template-columns: 48px 1fr 1fr 48px;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: none;
+    border-radius: 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0);
+    transition: background 0.15s;
+  }
+  .btn:active::after { background: rgba(255,255,255,0.08); }
+
+  .btn-icon {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    flex-shrink: 0;
+  }
+  .btn-icon:active { transform: scale(0.93); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #0a0f02;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    box-shadow: 0 4px 20px rgba(200,240,100,0.25);
+  }
+  .btn-primary:active { transform: scale(0.96); box-shadow: none; }
+
+  .btn-secondary {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-secondary:active { transform: scale(0.96); }
+
+  .btn-danger {
+    background: rgba(255,107,107,0.12);
+    border: 1px solid rgba(255,107,107,0.2);
+    color: var(--accent3);
+  }
+  .btn-danger:active { transform: scale(0.96); }
+
+  /* ─── ACTION ROW ─── */
+  .action-row {
+    width: 100%;
+    max-width: 420px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  /* ─── EMPTY STATE ─── */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 60px 20px;
+    text-align: center;
+  }
+
+  .empty-icon {
+    width: 72px;
+    height: 72px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+  }
+
+  .empty-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--text);
+  }
+
+  .empty-sub {
+    font-size: 14px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    max-width: 260px;
+  }
+
+  /* ─── BOTTOM NAV ─── */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0; right: 0;
+    z-index: 100;
+    background: rgba(10,10,15,0.92);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding-bottom: var(--safe-b);
+  }
+
+  .nav-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-dimmer);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    transition: color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 60px;
+  }
+
+  .nav-tab.active { color: var(--accent); }
+  .nav-tab svg { transition: transform 0.2s; }
+  .nav-tab.active svg { transform: scale(1.1); }
+
+  /* ─── PANELS ─── */
+  .panel {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 16px;
+    padding-bottom: calc(var(--tab-h) + var(--safe-b) + 16px);
+    gap: 16px;
+  }
+  .panel.active { display: flex; }
+
+  .panel-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    padding: 4px 0 0;
+  }
+
+  .panel-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .panel-section-header {
+    padding: 14px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dimmer);
+    border-bottom: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .panel-section-body { padding: 16px; }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    letter-spacing: 0.3px;
+  }
+
+  textarea, input[type="text"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    resize: vertical;
+    -webkit-appearance: none;
+    caret-color: var(--accent);
+  }
+  textarea:focus, input[type="text"]:focus { border-color: var(--border-bright); }
+  textarea { min-height: 130px; }
+
+  .hint {
+    font-size: 11px;
+    color: var(--text-dimmer);
+    margin-top: 8px;
+    line-height: 1.5;
+    font-family: 'DM Mono', monospace;
+  }
+  .hint code {
+    color: var(--accent);
+    background: rgba(200,240,100,0.08);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  /* ─── CARD LIST ─── */
+  .card-list { display: flex; flex-direction: column; gap: 2px; }
+
+  .card-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+  .card-list-item:last-child { border-bottom: none; }
+  .card-list-item:active { background: var(--surface2); }
+
+  .cli-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dimmer);
+    min-width: 24px;
+  }
+
+  .cli-content { flex: 1; min-width: 0; }
+
+  .cli-word {
+    font-weight: 600;
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cli-meaning {
+    font-size: 12px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+  }
+
+  .cli-del {
+    background: none;
+    border: none;
+    color: var(--text-dimmer);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 8px;
+    transition: color 0.15s, background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    min-width: 32px; min-height: 32px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cli-del:active { color: var(--accent3); background: rgba(255,107,107,0.1); }
+
+  /* ─── TOAST ─── */
+  .toast {
+    position: fixed;
+    bottom: calc(var(--tab-h) + var(--safe-b) + 16px);
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface2);
+    border: 1px solid var(--border-bright);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 12px 20px;
+    border-radius: 40px;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 999;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast.success { border-color: rgba(200,240,100,0.4); color: var(--accent); }
+  .toast.error { border-color: rgba(255,107,107,0.4); color: var(--accent3); }
+
+  /* ─── MODAL ─── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 200;
+    display: flex;
+    align-items: flex-end;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal-sheet {
+    width: 100%;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 24px 24px 0 0;
+    padding: 8px 20px 32px;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    padding-bottom: calc(32px + var(--safe-b));
+  }
+  .modal-overlay.open .modal-sheet { transform: translateY(0); }
+
+  .modal-handle {
+    width: 36px; height: 4px;
+    background: var(--border-bright);
+    border-radius: 2px;
+    margin: 10px auto 20px;
+  }
+
+  .modal-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    margin-bottom: 16px;
+  }
+
+  .modal-fields { display: flex; flex-direction: column; gap: 14px; }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 0; }
+
+  /* ─── SWIPE INDICATOR ─── */
+  .swipe-hint {
+    font-size: 11px;
+    color: var(--text-dimmer);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1px;
+    text-align: center;
+  }
+
+  /* ─── STATS ─── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .stat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    line-height: 1;
+    color: var(--accent);
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">FlashDeck</div>
+  <div class="deck-count" id="deckCount">0 CARDS</div>
+</div>
+
+<!-- STUDY PANEL -->
+<div class="panel active" id="panelStudy">
+  <div class="search-wrap" style="padding:0 0 4px;">
+    <div class="search-inner">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="searchInput" placeholder="Search cards…" autocomplete="off" autocorrect="off">
+      <button class="search-clear" id="searchClear" onclick="clearSearch()">×</button>
+    </div>
+  </div>
+
+  <div id="cardArea"></div>
+</div>
+
+<!-- IMPORT PANEL -->
+<div class="panel" id="panelImport">
+  <div class="panel-title">Add Cards</div>
+
+  <div class="panel-section">
+    <div class="panel-section-header">Quick Add — Single Card</div>
+    <div class="panel-section-body" style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <label>Word</label>
+        <input type="text" id="singleWord" placeholder="e.g. Ephemeral">
+      </div>
+      <div>
+        <label>Meaning</label>
+        <input type="text" id="singleMeaning" placeholder="Lasting for a very short time">
+      </div>
+      <div>
+        <label>Example sentence</label>
+        <input type="text" id="singleExample" placeholder="The ephemeral beauty of a sunset…">
+      </div>
+      <button class="btn btn-primary" onclick="addSingle()" style="width:100%">Add Card</button>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-section-header">Bulk Import</div>
+    <div class="panel-section-body">
+      <label>Paste your cards below</label>
+      <textarea id="bulkInput" placeholder="word;meaning;example&#10;Serendipity;Finding happy accidents;She discovered the café by serendipity&#10;Ephemeral;Short-lived;The ephemeral beauty faded quickly"></textarea>
+      <p class="hint">Format: <code>word;meaning;example</code> — one per line</p>
+      <button class="btn btn-primary" onclick="bulkImport()" style="width:100%;margin-top:14px;">Import Cards</button>
+    </div>
+  </div>
+</div>
+
+<!-- DECK PANEL -->
+<div class="panel" id="panelDeck">
+  <div class="panel-title">My Deck</div>
+
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <div class="panel-section">
+    <div class="panel-section-header">Backup & Export</div>
+    <div class="panel-section-body" style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn btn-secondary" onclick="exportJSON()" style="width:100%">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export as JSON
+      </button>
+      <label class="btn btn-secondary" style="width:100%;cursor:pointer;justify-content:center;">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import JSON
+        <input type="file" accept=".json" onchange="importJSON(event)" style="display:none">
+      </label>
+      <button class="btn btn-danger" onclick="confirmClearAll()" style="width:100%">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6"/><path d="M10,11v6m4-6v6"/></svg>
+        Clear All Cards
+      </button>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-section-header">All Cards (<span id="listCount">0</span>)</div>
+    <div class="card-list" id="cardList"></div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-tab active" id="tabStudy" onclick="switchTab('Study')">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>
+    Study
+  </button>
+  <button class="nav-tab" id="tabImport" onclick="switchTab('Import')">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    Add
+  </button>
+  <button class="nav-tab" id="tabDeck" onclick="switchTab('Deck')">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+    Deck
+  </button>
+</nav>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle">Edit Card</div>
+    <div class="modal-fields">
+      <div>
+        <label>Word</label>
+        <input type="text" id="editWord" placeholder="Word">
+      </div>
+      <div>
+        <label>Meaning</label>
+        <input type="text" id="editMeaning" placeholder="Meaning">
+      </div>
+      <div>
+        <label>Example</label>
+        <input type="text" id="editExample" placeholder="Example sentence">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()" style="flex:1">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEdit()" style="flex:2">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── STATE ───
+let cards = JSON.parse(localStorage.getItem('flashdeck_v2') || '[]');
+let filteredCards = [...cards];
+let currentIndex = 0;
+let isFlipped = false;
+let editingIndex = -1;
+let searchQuery = '';
+
+// ─── TOUCH / SWIPE ───
+let touchStartX = 0, touchStartY = 0, touchStartT = 0;
+
+// ─── INIT ───
+function init() {
+  renderCard();
+  renderStats();
+  renderList();
+  updateCount();
+}
+
+// ─── STORAGE ───
+function save() {
+  localStorage.setItem('flashdeck_v2', JSON.stringify(cards));
+}
+
+// ─── SEARCH ───
+document.getElementById('searchInput').addEventListener('input', function() {
+  searchQuery = this.value.trim().toLowerCase();
+  document.getElementById('searchClear').classList.toggle('visible', searchQuery.length > 0);
+  applySearch();
+});
+
+function applySearch() {
+  if (!searchQuery) {
+    filteredCards = [...cards];
+  } else {
+    filteredCards = cards.filter(c =>
+      c.word.toLowerCase().includes(searchQuery) ||
+      c.meaning.toLowerCase().includes(searchQuery) ||
+      (c.example || '').toLowerCase().includes(searchQuery)
+    );
+  }
+  currentIndex = 0;
+  isFlipped = false;
+  renderCard();
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  searchQuery = '';
+  document.getElementById('searchClear').classList.remove('visible');
+  applySearch();
+}
+
+// ─── RENDER CARD ───
+function renderCard() {
+  const area = document.getElementById('cardArea');
+
+  if (filteredCards.length === 0) {
+    const msg = searchQuery
+      ? `No cards match "<strong>${searchQuery}</strong>"`
+      : `No cards yet. <br>Go to <strong>Add</strong> to create some!`;
+    area.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">${searchQuery ? '🔍' : '🃏'}</div>
+        <div class="empty-title">${searchQuery ? 'No Results' : 'Empty Deck'}</div>
+        <div class="empty-sub">${msg}</div>
+      </div>`;
+    return;
+  }
+
+  const card = filteredCards[currentIndex];
+  const pct = filteredCards.length > 1 ? (currentIndex / (filteredCards.length - 1)) * 100 : 100;
+
+  area.innerHTML = `
+    <div class="scene" id="scene" ontouchstart="onTouchStart(event)" ontouchend="onTouchEnd(event)" onclick="handleCardTap(event)">
+      <div class="card ${isFlipped ? 'flipped' : ''}" id="card">
+        <div class="card-face card-front">
+          <div class="card-tag">Word</div>
+          <div class="card-word">${escHtml(card.word)}</div>
+        </div>
+        <div class="card-face card-back">
+          <div class="card-tag">Meaning</div>
+          <div class="card-meaning">${escHtml(card.meaning)}</div>
+          ${card.example ? `<div class="card-example">"${escHtml(card.example)}"</div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-info">
+        <span>${currentIndex + 1} / ${filteredCards.length}</span>
+        <span>${Math.round(pct)}%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-icon" onclick="prevCard()" title="Previous">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
+      </button>
+      <button class="btn btn-secondary" onclick="shuffleCards()">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="16,3 21,3 21,8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21,16 21,21 16,21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+        Shuffle
+      </button>
+      <button class="btn btn-danger" onclick="deleteCurrentCard()">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6"/></svg>
+        Delete
+      </button>
+      <button class="btn btn-icon" onclick="nextCard()" title="Next">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><polyline points="9,18 15,12 9,6"/></svg>
+      </button>
+    </div>
+
+    <div class="swipe-hint">← swipe to navigate · tap to flip →</div>
+  `;
+}
+
+function handleCardTap(e) {
+  // only flip if it's a direct tap on the scene, not on buttons
+  if (e.target.closest('.btn')) return;
+  flipCard();
+}
+
+function flipCard() {
+  isFlipped = !isFlipped;
+  const c = document.getElementById('card');
+  if (c) c.classList.toggle('flipped', isFlipped);
+}
+
+function nextCard() {
+  if (!filteredCards.length) return;
+  isFlipped = false;
+  currentIndex = (currentIndex + 1) % filteredCards.length;
+  renderCard();
+}
+
+function prevCard() {
+  if (!filteredCards.length) return;
+  isFlipped = false;
+  currentIndex = (currentIndex - 1 + filteredCards.length) % filteredCards.length;
+  renderCard();
+}
+
+// ─── TOUCH SWIPE ───
+function onTouchStart(e) {
+  const t = e.touches[0];
+  touchStartX = t.clientX;
+  touchStartY = t.clientY;
+  touchStartT = Date.now();
+}
+
+function onTouchEnd(e) {
+  const t = e.changedTouches[0];
+  const dx = t.clientX - touchStartX;
+  const dy = t.clientY - touchStartY;
+  const dt = Date.now() - touchStartT;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 45 && dt < 400) {
+    dx < 0 ? nextCard() : prevCard();
+  }
+}
+
+// ─── CARDS CRUD ───
+function addSingle() {
+  const word = document.getElementById('singleWord').value.trim();
+  const meaning = document.getElementById('singleMeaning').value.trim();
+  const example = document.getElementById('singleExample').value.trim();
+  if (!word || !meaning) { showToast('Word and meaning are required', 'error'); return; }
+  cards.push({ word, meaning, example, id: Date.now() });
+  save();
+  document.getElementById('singleWord').value = '';
+  document.getElementById('singleMeaning').value = '';
+  document.getElementById('singleExample').value = '';
+  applySearch();
+  renderStats(); renderList(); updateCount();
+  showToast('Card added ✓', 'success');
+}
+
+function bulkImport() {
+  const raw = document.getElementById('bulkInput').value.trim();
+  if (!raw) { showToast('Nothing to import', 'error'); return; }
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  let added = 0;
+  lines.forEach(line => {
+    const parts = line.split(';');
+    if (parts.length >= 2) {
+      cards.push({ word: parts[0].trim(), meaning: parts[1].trim(), example: (parts[2] || '').trim(), id: Date.now() + Math.random() });
+      added++;
+    }
+  });
+  save();
+  document.getElementById('bulkInput').value = '';
+  applySearch(); renderStats(); renderList(); updateCount();
+  showToast(`${added} card${added !== 1 ? 's' : ''} imported ✓`, 'success');
+}
+
+function deleteCurrentCard() {
+  if (!filteredCards.length) return;
+  const cardToDelete = filteredCards[currentIndex];
+  cards = cards.filter(c => c.id !== cardToDelete.id);
+  save();
+  if (currentIndex >= filteredCards.length - 1) currentIndex = Math.max(0, filteredCards.length - 2);
+  isFlipped = false;
+  applySearch(); renderStats(); renderList(); updateCount();
+  showToast('Card deleted');
+}
+
+function deleteCard(id) {
+  cards = cards.filter(c => c.id !== id);
+  save();
+  if (currentIndex >= filteredCards.length - 1) currentIndex = Math.max(0, filteredCards.length - 2);
+  applySearch(); renderStats(); renderList(); updateCount();
+  showToast('Card deleted');
+}
+
+function shuffleCards() {
+  if (filteredCards.length < 2) return;
+  filteredCards = [...filteredCards].sort(() => Math.random() - 0.5);
+  currentIndex = 0; isFlipped = false;
+  renderCard();
+  showToast('Deck shuffled 🔀');
+}
+
+function confirmClearAll() {
+  if (!cards.length) { showToast('Deck is already empty', 'error'); return; }
+  if (confirm(`Delete all ${cards.length} cards? This cannot be undone.`)) {
+    cards = []; save();
+    filteredCards = []; currentIndex = 0; isFlipped = false;
+    renderCard(); renderStats(); renderList(); updateCount();
+    showToast('Deck cleared');
+  }
+}
+
+// ─── EDIT MODAL ───
+function openEdit(id) {
+  const card = cards.find(c => c.id === id);
+  if (!card) return;
+  editingIndex = id;
+  document.getElementById('editWord').value = card.word;
+  document.getElementById('editMeaning').value = card.meaning;
+  document.getElementById('editExample').value = card.example || '';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modalOverlay')) return;
+  document.getElementById('modalOverlay').classList.remove('open');
+  editingIndex = -1;
+}
+
+function saveEdit() {
+  const word = document.getElementById('editWord').value.trim();
+  const meaning = document.getElementById('editMeaning').value.trim();
+  const example = document.getElementById('editExample').value.trim();
+  if (!word || !meaning) { showToast('Word and meaning required', 'error'); return; }
+  const card = cards.find(c => c.id === editingIndex);
+  if (card) { card.word = word; card.meaning = meaning; card.example = example; }
+  save(); applySearch(); renderStats(); renderList();
+  document.getElementById('modalOverlay').classList.remove('open');
+  showToast('Card updated ✓', 'success');
+}
+
+// ─── EXPORT / IMPORT ───
+function exportJSON() {
+  if (!cards.length) { showToast('No cards to export', 'error'); return; }
+  const blob = new Blob([JSON.stringify(cards, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `flashdeck-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('Exported ✓', 'success');
+}
+
+function importJSON(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!Array.isArray(data)) throw new Error();
+      const imported = data.map(c => ({
+        word: String(c.word || '').trim(),
+        meaning: String(c.meaning || '').trim(),
+        example: String(c.example || '').trim(),
+        id: c.id || Date.now() + Math.random()
+      })).filter(c => c.word && c.meaning);
+      cards = [...cards, ...imported];
+      save(); applySearch(); renderStats(); renderList(); updateCount();
+      showToast(`${imported.length} cards imported ✓`, 'success');
+    } catch {
+      showToast('Invalid JSON file', 'error');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ─── STATS + LIST ───
+function renderStats() {
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-num">${cards.length}</div>
+      <div class="stat-label">Total Cards</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">${filteredCards.length}</div>
+      <div class="stat-label">In View</div>
+    </div>
+  `;
+}
+
+function renderList() {
+  document.getElementById('listCount').textContent = cards.length;
+  const list = document.getElementById('cardList');
+  if (!cards.length) {
+    list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-dimmer);font-size:14px;">No cards yet</div>`;
+    return;
+  }
+  list.innerHTML = cards.map((c, i) => `
+    <div class="card-list-item" onclick="openEdit(${c.id})">
+      <div class="cli-num">${String(i + 1).padStart(2, '0')}</div>
+      <div class="cli-content">
+        <div class="cli-word">${escHtml(c.word)}</div>
+        <div class="cli-meaning">${escHtml(c.meaning)}</div>
+      </div>
+      <button class="cli-del" onclick="event.stopPropagation();deleteCard(${c.id})" title="Delete">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6"/></svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+function updateCount() {
+  const n = cards.length;
+  document.getElementById('deckCount').textContent = `${n} CARD${n !== 1 ? 'S' : ''}`;
+}
+
+// ─── TABS ───
+function switchTab(name) {
+  ['Study','Import','Deck'].forEach(t => {
+    document.getElementById(`panel${t}`).classList.toggle('active', t === name);
+    document.getElementById(`tab${t}`).classList.toggle('active', t === name);
+  });
+  if (name === 'Study') { applySearch(); }
+  if (name === 'Deck') { renderStats(); renderList(); }
+}
+
+// ─── TOAST ───
+let toastTimer;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── UTILS ───
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── KEYBOARD (desktop) ───
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowRight') nextCard();
+  if (e.key === 'ArrowLeft') prevCard();
+  if (e.key === ' ') { e.preventDefault(); flipCard(); }
+});
+
+// ─── PWA SERVICE WORKER (inline) ───
+if ('serviceWorker' in navigator) {
+  const sw = `
+    const CACHE = 'flashdeck-v1';
+    const ASSETS = [self.location.href];
+    self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS))));
+    self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
+  `;
+  const blob = new Blob([sw], { type: 'application/javascript' });
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+}
+
+// ─── START ───
+init();
+</script>
+</body>
+</html>

@@ -36,25 +36,25 @@
   --r:           18px;
 }
 
-/* ═══════════════════════════ RESET & IOS FIXES */
+/* ═══════════════════════════ RESET & CROSS-PLATFORM FIXES */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
 
-/* THE ULTIMATE SAFARI BOUNCE FIX */
-html, body {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  overflow: hidden;
+html {
+  width: 100%; height: 100%;
   background: var(--bg);
-  -webkit-text-size-adjust: 100%;
 }
 
 body {
+  position: fixed; /* iOS bounce fix */
+  top: 0; left: 0; width: 100%; height: 100%;
+  margin: 0;
   font-family: var(--fb);
   color: var(--text);
   display: flex;
   flex-direction: column;
   padding-top: var(--safe-t);
   overscroll-behavior: none;
+  background: var(--bg);
 }
 
 /* ═══════════════════════════ HEADER */
@@ -70,7 +70,7 @@ body {
 .header-meta { display: flex; align-items: center; gap: 8px; }
 .hbadge { font-family: var(--fm); font-size: 10px; padding: 4px 9px; border-radius: 20px; background: var(--glass); border: 1px solid var(--border); color: var(--text-2); }
 
-/* ═══════════════════════════ PANELS (SCROLLABLE AREAS) */
+/* ═══════════════════════════ PANELS */
 .panels { flex: 1; position: relative; overflow: hidden; }
 
 .panel {
@@ -79,8 +79,6 @@ body {
   opacity: 0; pointer-events: none;
   transform: translateY(8px);
   transition: opacity .2s ease, transform .2s ease;
-  
-  /* THIS ALLOWS INNER SCROLLING ON IOS */
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-bottom: calc(var(--nav-h) + var(--safe-b) + 80px);
@@ -147,9 +145,10 @@ textarea { min-height: 120px; }
 
 /* ═══════════════════════════ BOTTOM NAV */
 .bottom-nav {
-  position: fixed; bottom: 0; left: 0; width: 100%; z-index: 50;
+  position: absolute; bottom: 0; left: 0; width: 100%; z-index: 50;
   display: flex; background: rgba(8,8,16,0.95); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-  border-top: 1px solid var(--border); padding-bottom: var(--safe-b);
+  border-bottom: env(safe-area-inset-bottom, 0px) solid transparent; /* iPhone bottom bar fix */
+  border-top: 1px solid var(--border); 
 }
 .nav-btn {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
@@ -189,3 +188,239 @@ textarea { min-height: 120px; }
         <div class="sec-head">Quick Add</div>
         <div class="field"><label>Word</label><input type="text" id="inWord"></div>
         <div class="field"><label>Meaning</label><input type="text" id="inMeaning"></div>
+        <div class="field"><label>Example</label><input type="text" id="inExample"></div>
+        <button class="btn btn-primary btn-full" onclick="addSingle()">Add Card</button>
+      </div>
+
+      <div class="glass">
+        <div class="sec-head">Bulk Paste</div>
+        <textarea id="bulkInput" placeholder="word;meaning;example"></textarea>
+        <button class="btn btn-primary btn-full" onclick="bulkImport()">Import Pasted Text</button>
+      </div>
+
+      <div class="glass">
+        <div class="sec-head">Upload .TXT File</div>
+        <div class="file-drop-zone">
+          <div class="file-drop-icon">📄</div>
+          <div style="font-size: 14px; font-weight: 600;">Choose a text file</div>
+          <div style="font-size: 11px; color: var(--text-2);">word;meaning;example format</div>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="document.getElementById('txtFile').click()">Browse Files</button>
+        <input type="file" id="txtFile" accept="*/*" style="display:none" onchange="loadFromFile(event)">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panelDeck">
+    <div class="panel-scroll">
+      <h2 style="font-family: var(--fd);">My Deck</h2>
+      
+      <div class="glass">
+        <div class="sec-head">Backup & Restore</div>
+        <button class="btn btn-full" onclick="exportJSON()">Export JSON Backup</button>
+        <button class="btn btn-full" onclick="document.getElementById('jsonFile').click()">Import JSON Backup</button>
+        <input type="file" id="jsonFile" accept="*/*" style="display:none" onchange="importJSON(event)">
+        
+        <button class="btn btn-danger btn-full" onclick="clearAll()" style="margin-top: 10px;">Delete All Cards</button>
+      </div>
+
+      <div class="glass">
+        <div class="sec-head">All Cards</div>
+        <div id="cardList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="tabStudy" onclick="switchTab('Study')">STUDY</button>
+  <button class="nav-btn" id="tabAdd" onclick="switchTab('Add')">ADD</button>
+  <button class="nav-btn" id="tabDeck" onclick="switchTab('Deck')">DECK</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let deck = [];
+let queue = [];
+let qIdx = 0;
+let flipped = false;
+
+function save() { localStorage.setItem('flashdeck_final', JSON.stringify(deck)); }
+function load() { 
+  try { 
+    deck = JSON.parse(localStorage.getItem('flashdeck_final') || '[]'); 
+    if(!Array.isArray(deck)) deck = [];
+  } catch { deck = []; }
+  deck.forEach(c => { if(!c.id) c.id = Date.now() + Math.random(); });
+}
+
+function parseText(text) {
+  let added = 0, dupes = 0;
+  const existing = new Set(deck.map(c => c.word.toLowerCase()));
+  
+  text.split(/\r?\n/).forEach(line => {
+    if (line.trim().startsWith('#') || line.trim().startsWith('//')) return;
+    let pts = line.trim().split(';');
+    if(pts.length >= 2 && pts[0].trim() && pts[1].trim()) {
+      let w = pts[0].trim();
+      if (existing.has(w.toLowerCase())) { dupes++; return; }
+      deck.push({ id: Date.now()+Math.random(), word: w, meaning: pts[1].trim(), example: (pts[2]||'').trim() });
+      existing.add(w.toLowerCase());
+      added++;
+    }
+  });
+  return { added, dupes };
+}
+
+function buildQueue() {
+  queue = [...deck];
+  queue.sort(() => Math.random() - 0.5);
+  qIdx = 0; flipped = false;
+}
+
+function renderStudy() {
+  let el = document.getElementById('studyInner');
+  if(!queue.length) {
+    el.innerHTML = `<h3 style="margin-top: 50px; color: var(--text-2);">No cards found. Go to Add!</h3>`;
+    return;
+  }
+  let c = queue[qIdx];
+  el.innerHTML = `
+    <div class="scene" onclick="flipped=!flipped; renderStudy();">
+      <div class="card3d ${flipped?'flipped':''}">
+        <div class="card-face card-front"><div class="card-word">${c.word}</div><p style="font-size:12px; opacity:0.5; color: var(--cyan);">Tap to flip</p></div>
+        <div class="card-face card-back">
+          <div style="font-size: 10px; color: var(--violet); text-transform: uppercase; margin-bottom: 10px;">Meaning</div>
+          <div class="card-meaning">${c.meaning}</div>
+          <div class="card-example">"${c.example}"</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; width:100%; max-width:480px; margin-top:20px;">
+      <button class="btn" style="flex:1" onclick="qIdx=(qIdx-1+queue.length)%queue.length; flipped=false; renderStudy();">Prev</button>
+      <button class="btn btn-primary" style="flex:2" onclick="qIdx=(qIdx+1)%queue.length; flipped=false; renderStudy();">Next Card</button>
+    </div>
+  `;
+}
+
+function renderDeck() {
+  let el = document.getElementById('cardList');
+  if (!deck.length) { el.innerHTML = `<p style="text-align:center; color: var(--text-3); font-size: 14px; margin-top: 20px;">Deck is empty.</p>`; } 
+  else {
+    el.innerHTML = deck.map(c => `
+      <div class="cli">
+        <div class="cli-body">
+          <div class="cli-word">${c.word}</div>
+          <div class="cli-mean">${c.meaning}</div>
+        </div>
+        <button class="cli-del" onclick="deleteCard(${c.id})">Del</button>
+      </div>
+    `).join('');
+  }
+  document.getElementById('badgeTotal').innerText = deck.length + " CARDS";
+}
+
+function deleteCard(id) {
+  deck = deck.filter(c => c.id !== id);
+  save(); buildQueue(); renderDeck(); renderStudy();
+}
+
+function addSingle() {
+  let w = document.getElementById('inWord').value.trim();
+  let m = document.getElementById('inMeaning').value.trim();
+  let e = document.getElementById('inExample').value.trim();
+  if(!w || !m) return toast('Word and Meaning required');
+  if(deck.some(c => c.word.toLowerCase() === w.toLowerCase())) return toast('Card already exists!');
+  
+  deck.push({ id: Date.now(), word: w, meaning: m, example: e });
+  save(); buildQueue(); renderDeck(); renderStudy();
+  document.getElementById('inWord').value = '';
+  document.getElementById('inMeaning').value = '';
+  document.getElementById('inExample').value = '';
+  toast('Card added!');
+}
+
+function bulkImport() {
+  let t = document.getElementById('bulkInput').value;
+  if (!t.trim()) return toast('Nothing to import');
+  let res = parseText(t);
+  save(); buildQueue(); renderDeck(); renderStudy();
+  document.getElementById('bulkInput').value = '';
+  toast(`${res.added} imported. ${res.dupes} skipped.`);
+  switchTab('Deck');
+}
+
+// THE SAFARI FILE UPLOAD FIX
+function loadFromFile(e) {
+  let file = e.target.files[0]; if(!file) return;
+  let reader = new FileReader();
+  reader.onload = function(ev) {
+    let res = parseText(ev.target.result);
+    save(); buildQueue(); renderDeck(); renderStudy();
+    toast(`${res.added} cards imported. ${res.dupes} skipped.`);
+    switchTab('Deck');
+  };
+  reader.readAsText(file);
+  e.target.value = ''; // reset so you can pick the same file again if needed
+}
+
+function exportJSON() {
+  if (!deck.length) return toast('Deck is empty!');
+  let blob = new Blob([JSON.stringify(deck, null, 2)], {type:'application/json'});
+  let a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'flashdeck-backup.json';
+  a.click();
+}
+
+// THE SAFARI JSON FIX
+function importJSON(e) {
+  let file = e.target.files[0]; if(!file) return;
+  let reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      let data = JSON.parse(ev.target.result);
+      if (!Array.isArray(data)) throw new Error("Not an array");
+      
+      let added = 0;
+      const existing = new Set(deck.map(c => c.word.toLowerCase()));
+      
+      data.forEach(c => {
+        if(c.word && c.meaning && !existing.has(c.word.toLowerCase())) {
+          deck.push({ id: Date.now()+Math.random(), word: c.word, meaning: c.meaning, example: c.example||'' });
+          existing.add(c.word.toLowerCase());
+          added++;
+        }
+      });
+      save(); buildQueue(); renderDeck(); renderStudy();
+      toast(`Backup Restored! ${added} new cards.`);
+      switchTab('Deck');
+    } catch (err) { toast('Invalid JSON File'); }
+  };
+  reader.readAsText(file);
+  e.target.value = ''; // reset
+}
+
+function clearAll() {
+  if(confirm('Delete ALL cards? This cannot be undone.')) { deck=[]; save(); buildQueue(); renderDeck(); renderStudy(); }
+}
+
+function switchTab(t) {
+  ['Study','Add','Deck'].forEach(x => {
+    document.getElementById('panel'+x).classList.toggle('active', x===t);
+    document.getElementById('tab'+x).classList.toggle('active', x===t);
+  });
+}
+
+function toast(msg) {
+  let el = document.getElementById('toast');
+  el.innerText = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// BOOT UP
+load(); buildQueue(); renderStudy(); renderDeck();
+</script>
+</body>
+</html>

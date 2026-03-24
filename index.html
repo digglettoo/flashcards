@@ -43,8 +43,19 @@
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  html, body {
+  html {
     height: 100%;
+    height: -webkit-fill-available;
+  }
+
+  body {
+    height: 100%;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     background: var(--bg);
     color: var(--text);
     font-family: 'DM Sans', sans-serif;
@@ -52,12 +63,6 @@
     overscroll-behavior: none;
     user-select: none;
     -webkit-user-select: none;
-  }
-
-  body {
-    display: flex;
-    flex-direction: column;
-    min-height: 100dvh;
     padding-top: var(--safe-t);
   }
 
@@ -190,9 +195,11 @@
     outline: none;
     color: var(--text);
     font-family: 'DM Sans', sans-serif;
-    font-size: 15px;
+    font-size: 16px; /* ≥16px prevents iOS auto-zoom */
     padding: 12px 0;
     caret-color: var(--accent);
+    user-select: text;
+    -webkit-user-select: text;
   }
   #searchInput::placeholder { color: var(--text-dimmer); }
   .search-clear {
@@ -530,9 +537,12 @@
     flex: 1;
     flex-direction: column;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* momentum scrolling on iOS */
     padding: 16px;
-    padding-bottom: calc(var(--tab-h) + var(--safe-b) + 16px);
+    padding-bottom: calc(var(--tab-h) + var(--safe-b) + 48px); /* 48px extra so nav never clips content */
     gap: 16px;
+    /* ensure panel can actually grow to fill available height */
+    min-height: 0;
   }
   .panel.active { display: flex; }
 
@@ -578,13 +588,16 @@
     border-radius: 12px;
     color: var(--text);
     font-family: 'DM Mono', monospace;
-    font-size: 13px;
+    font-size: 16px; /* ≥16px prevents iOS Safari auto-zoom on focus */
     padding: 12px 14px;
     outline: none;
     transition: border-color 0.2s;
     resize: vertical;
     -webkit-appearance: none;
     caret-color: var(--accent);
+    /* allow text selection inside inputs/textareas */
+    user-select: text;
+    -webkit-user-select: text;
   }
   textarea:focus, input[type="text"]:focus { border-color: var(--border-bright); }
   textarea { min-height: 130px; }
@@ -710,7 +723,10 @@
     padding: 8px 20px 32px;
     transform: translateY(100%);
     transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    padding-bottom: calc(32px + var(--safe-b));
+    padding-bottom: calc(40px + var(--safe-b));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    max-height: 90dvh;
   }
   .modal-overlay.open .modal-sheet { transform: translateY(0); }
 
@@ -775,6 +791,63 @@
     font-size: 12px;
     color: var(--text-dim);
     font-weight: 500;
+  }
+
+  /* ─── FILE DROP ZONE ─── */
+  .file-drop-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 16px 16px;
+    background: var(--surface2);
+    border: 1.5px dashed var(--border-bright);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    text-align: center;
+  }
+  .file-drop-zone:active,
+  .file-drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(200,240,100,0.05);
+  }
+  .file-drop-zone.has-file { border-style: solid; border-color: rgba(200,240,100,0.35); }
+  .file-drop-icon {
+    width: 52px; height: 52px;
+    background: var(--surface3);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim);
+    transition: color 0.2s, background 0.2s;
+  }
+  .file-drop-zone.has-file .file-drop-icon {
+    color: var(--accent);
+    background: rgba(200,240,100,0.1);
+  }
+  .file-drop-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    display: block;
+  }
+  .file-drop-sub {
+    font-size: 11px;
+    color: var(--text-dimmer);
+    font-family: 'DM Mono', monospace;
+    display: block;
+    margin-top: 2px;
+  }
+  .file-drop-name {
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    color: var(--accent);
+    padding: 6px 12px;
+    background: rgba(200,240,100,0.08);
+    border-radius: 8px;
+    border: 1px solid rgba(200,240,100,0.15);
+    word-break: break-all;
   }
 </style>
 </head>
@@ -841,6 +914,35 @@
       <textarea id="bulkInput" placeholder="word;meaning;example&#10;Serendipity;Finding happy accidents;She discovered the café by serendipity&#10;Ephemeral;Short-lived;The ephemeral beauty faded quickly"></textarea>
       <p class="hint">Format: <code>word;meaning;example</code> — one per line</p>
       <button class="btn btn-primary" onclick="bulkImport()" style="width:100%;margin-top:14px;">Import Cards</button>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-section-header">Load from File</div>
+    <div class="panel-section-body" style="display:flex;flex-direction:column;gap:14px;">
+      <p class="hint" style="margin:0;">Pick a <code>.txt</code> file formatted as <code>word;meaning;example</code> — one card per line. Duplicates are skipped automatically.</p>
+
+      <label class="file-drop-zone" id="fileDropZone" for="txtFileInput">
+        <div class="file-drop-icon">
+          <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14,2 14,8 20,8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <polyline points="9,15 12,12 15,15"/>
+          </svg>
+        </div>
+        <div class="file-drop-text">
+          <span class="file-drop-title">Tap to choose a .txt file</span>
+          <span class="file-drop-sub">or drop it here</span>
+        </div>
+        <div class="file-drop-name" id="fileDropName" style="display:none"></div>
+        <input type="file" id="txtFileInput" accept=".txt,text/plain" style="display:none" onchange="loadFromFile(event)">
+      </label>
+
+      <button class="btn btn-primary" id="loadFileBtn" onclick="document.getElementById('txtFileInput').click()" style="width:100%;">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9,15 12,12 15,15"/></svg>
+        Load from .txt File
+      </button>
     </div>
   </div>
 </div>
@@ -1103,18 +1205,137 @@ function bulkImport() {
   const raw = document.getElementById('bulkInput').value.trim();
   if (!raw) { showToast('Nothing to import', 'error'); return; }
   const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-  let added = 0;
+  let added = 0, dupes = 0;
   lines.forEach(line => {
     const parts = line.split(';');
     if (parts.length >= 2) {
-      cards.push({ word: parts[0].trim(), meaning: parts[1].trim(), example: (parts[2] || '').trim(), id: Date.now() + Math.random() });
+      const word = parts[0].trim();
+      if (cards.some(c => c.word.toLowerCase() === word.toLowerCase())) { dupes++; return; }
+      cards.push({ word, meaning: parts[1].trim(), example: (parts[2] || '').trim(), id: Date.now() + Math.random() });
       added++;
     }
   });
   save();
   document.getElementById('bulkInput').value = '';
   applySearch(); renderStats(); renderList(); updateCount();
-  showToast(`${added} card${added !== 1 ? 's' : ''} imported ✓`, 'success');
+  const dupeMsg = dupes > 0 ? ` (${dupes} duplicate${dupes > 1 ? 's' : ''} skipped)` : '';
+  showToast(`${added} card${added !== 1 ? 's' : ''} imported ✓${dupeMsg}`, added > 0 ? 'success' : '');
+}
+
+// ─── LOAD FROM .TXT FILE ───
+function loadFromFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Update the drop zone UI
+  const zone = document.getElementById('fileDropZone');
+  const nameEl = document.getElementById('fileDropName');
+  zone.classList.add('has-file');
+  nameEl.textContent = file.name;
+  nameEl.style.display = 'block';
+
+  // Validate it's a text file
+  if (!file.name.endsWith('.txt') && !file.type.startsWith('text/')) {
+    showToast('Please select a .txt file', 'error');
+    resetFileZone();
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    const raw = e.target.result;
+    if (!raw || !raw.trim()) {
+      showToast('File is empty', 'error');
+      resetFileZone();
+      return;
+    }
+
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    let added = 0, dupes = 0, invalid = 0;
+
+    // Build a lowercase word set for fast dupe checking
+    const existing = new Set(cards.map(c => c.word.toLowerCase()));
+
+    lines.forEach(line => {
+      // Skip comment lines starting with # or //
+      if (line.startsWith('#') || line.startsWith('//')) return;
+
+      const parts = line.split(';');
+      if (parts.length < 2) { invalid++; return; }
+
+      const word    = parts[0].trim();
+      const meaning = parts[1].trim();
+      const example = (parts[2] || '').trim();
+
+      if (!word || !meaning) { invalid++; return; }
+
+      if (existing.has(word.toLowerCase())) {
+        dupes++;
+        return;
+      }
+
+      cards.push({ word, meaning, example, id: Date.now() + Math.random() });
+      existing.add(word.toLowerCase()); // prevent dupes within the file itself
+      added++;
+    });
+
+    save();
+    applySearch(); renderStats(); renderList(); updateCount();
+
+    // Build a clear feedback message
+    let msg = '';
+    if (added === 0 && dupes > 0) {
+      msg = `All ${dupes} cards already in deck`;
+      showToast(msg);
+    } else if (added === 0) {
+      msg = 'No valid cards found in file';
+      showToast(msg, 'error');
+    } else {
+      msg = `${added} card${added !== 1 ? 's' : ''} imported ✓`;
+      if (dupes > 0)   msg += ` · ${dupes} dupe${dupes > 1 ? 's' : ''} skipped`;
+      if (invalid > 0) msg += ` · ${invalid} invalid line${invalid > 1 ? 's' : ''}`;
+      showToast(msg, 'success');
+    }
+
+    // Reset file input so the same file can be re-selected later
+    event.target.value = '';
+    setTimeout(resetFileZone, 3000);
+  };
+
+  reader.onerror = function() {
+    showToast('Could not read file', 'error');
+    resetFileZone();
+  };
+
+  reader.readAsText(file, 'UTF-8');
+}
+
+function resetFileZone() {
+  const zone = document.getElementById('fileDropZone');
+  const nameEl = document.getElementById('fileDropName');
+  if (zone) zone.classList.remove('has-file');
+  if (nameEl) { nameEl.textContent = ''; nameEl.style.display = 'none'; }
+}
+
+// Drag-and-drop support for the file zone
+function initFileDrop() {
+  const zone = document.getElementById('fileDropZone');
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    // Simulate a change event
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    const input = document.getElementById('txtFileInput');
+    input.files = dt.files;
+    loadFromFile({ target: input });
+  });
 }
 
 function deleteCurrentCard() {
@@ -1374,6 +1595,7 @@ if ('serviceWorker' in navigator) {
 
 // ─── START ───
 init();
+initFileDrop();
 </script>
 </body>
 </html>
